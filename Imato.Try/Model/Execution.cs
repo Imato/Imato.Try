@@ -26,6 +26,15 @@
             onExecuteAsync.Add(func);
         }
 
+        internal void AddFunction(Action func)
+        {
+            if (onExecute == null)
+            {
+                onExecute = new List<Action>();
+            }
+            onExecute.Add(func);
+        }
+
         internal void AddOnError(Action<Exception> handler)
         {
             if (onError == null)
@@ -65,7 +74,7 @@
         /// <exception cref="Exception"></exception>
         public async Task ExecuteAsync()
         {
-            if (onExecuteAsync == null)
+            if (onExecuteAsync == null && onExecute == null)
             {
                 throw new Exception("Add Function(s) to execute first");
             }
@@ -73,16 +82,35 @@
             var hasError = false;
             while (Options.RetryCount > 0)
             {
-                foreach (var execution in onExecuteAsync)
+                if (onExecuteAsync != null)
                 {
-                    try
+                    foreach (var execution in onExecuteAsync)
                     {
-                        await execution(Token);
+                        try
+                        {
+                            await execution(Token);
+                        }
+                        catch (Exception ex)
+                        {
+                            hasError = true;
+                            await OnError(ex);
+                        }
                     }
-                    catch (Exception ex)
+                }
+
+                if (onExecute != null)
+                {
+                    foreach (var execution in onExecute)
                     {
-                        hasError = true;
-                        await OnError(ex);
+                        try
+                        {
+                            execution();
+                        }
+                        catch (Exception ex)
+                        {
+                            hasError = true;
+                            await OnError(ex);
+                        }
                     }
                 }
 
@@ -96,29 +124,7 @@
         /// <exception cref="Exception"></exception>
         public void Execute()
         {
-            if (onExecute == null)
-            {
-                throw new Exception("Add Function(s) to execute first");
-            }
-
-            var hasError = false;
-            while (Options.RetryCount > 0)
-            {
-                foreach (var execution in onExecute)
-                {
-                    try
-                    {
-                        execution();
-                    }
-                    catch (Exception ex)
-                    {
-                        hasError = true;
-                        OnError(ex).Wait();
-                    }
-                }
-
-                if (!hasError) return;
-            }
+            ExecuteAsync().Wait();
         }
 
         /// <summary>
@@ -201,22 +207,43 @@
         /// <exception cref="SetupExecutionException"></exception>
         public async Task<T?> GetResultAsync()
         {
-            if (onExecuteAsync == null)
+            if (onExecuteAsync == null && onExecute == null)
             {
                 throw new SetupExecutionException("Add Function(s) to execute first");
             }
 
-            foreach (var execution in onExecuteAsync)
+            if (onExecuteAsync != null)
             {
-                while (Options.RetryCount > 0)
+                foreach (var execution in onExecuteAsync)
                 {
-                    try
+                    while (Options.RetryCount > 0)
                     {
-                        return await execution(Token);
+                        try
+                        {
+                            return await execution(Token);
+                        }
+                        catch (Exception ex)
+                        {
+                            await OnError(ex);
+                        }
                     }
-                    catch (Exception ex)
+                }
+            }
+
+            if (onExecute != null)
+            {
+                foreach (var execution in onExecute)
+                {
+                    while (Options.RetryCount > 0)
                     {
-                        await OnError(ex);
+                        try
+                        {
+                            return execution();
+                        }
+                        catch (Exception ex)
+                        {
+                            await OnError(ex);
+                        }
                     }
                 }
             }
@@ -231,27 +258,7 @@
         /// <exception cref="SetupExecutionException"></exception>
         public T? GetResult()
         {
-            if (onExecute == null)
-            {
-                throw new SetupExecutionException("Add Function(s) to execute first");
-            }
-
-            foreach (var execution in onExecute)
-            {
-                while (Options.RetryCount > 0)
-                {
-                    try
-                    {
-                        return execution();
-                    }
-                    catch (Exception ex)
-                    {
-                        OnError(ex).Wait();
-                    }
-                }
-            }
-
-            return Default;
+            return GetResultAsync().Result;
         }
     }
 }
