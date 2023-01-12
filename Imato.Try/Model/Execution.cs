@@ -1,4 +1,9 @@
-﻿namespace Imato.Try
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Imato.Try
 {
     public class Execution
     {
@@ -145,7 +150,7 @@
     {
         private List<Func<CancellationToken, Task<T>>> onExecuteAsync = null!;
         private List<Func<T>> onExecute = null!;
-        internal T? Default { get; set; }
+        internal T Default { get; set; } = default;
 
         internal void AddFunction(Func<Task<T>> func)
         {
@@ -205,7 +210,7 @@
         /// </summary>
         /// <returns>T Result of added function(s)</returns>
         /// <exception cref="SetupExecutionException"></exception>
-        public async Task<T?> GetResultAsync()
+        public async Task<T> GetResultAsync()
         {
             if (onExecuteAsync == null && onExecute == null)
             {
@@ -256,7 +261,7 @@
         /// </summary>
         /// <returns>T Result of added function(s)</returns>
         /// <exception cref="SetupExecutionException"></exception>
-        public T? GetResult()
+        public T GetResult()
         {
             return GetResultAsync().Result;
         }

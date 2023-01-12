@@ -1,4 +1,6 @@
-﻿namespace Imato.Try
+﻿using System;
+
+namespace Imato.Try
 {
     public class SetupExecutionException : ApplicationException
     {
